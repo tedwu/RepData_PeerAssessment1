@@ -1,25 +1,96 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template.Rmd"
+author: "Ted Wu"
+date: "Saturday, March 07, 2015"
+output: html_document
 ---
 
+For this task we want to find pattern form the dataset that keep the activity monitor
+like [Fitbit](http://www.fitbit.com/), [Nike Fuelband](http://www.nike.com/us/en_us/c/nikeplus-fuelband) or [Jawbone Up](https://jawbone.com/up), to see a user of this kind
+of devices is in regular usage or in tech geeks.
 
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
+First we get data from [Activity monitoring data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip).
+The origin file type is zip, so we need extract the read file.
 
 
+```{r, echo = TRUE}
+zip_name <- 'activity.zip'
+if( !file.exists(zip_name) ){
+    zip_url <- 'https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip'
+    download.file(url = zip_url, destfile = zip_name, method = 'curl')    
+}
+file_name <- 'activity.csv'
+all_data <- read.csv(unz(zip_name, file_name))
 
-## Imputing missing values
+```
 
+Then get the means pre day from the whole data.
 
+```{r, echo=TRUE}
+library('dplyr')
+total_preday <- all_data %>%
+                     group_by(date) %>%
+                     summarise(sum = sum(steps, na.rm = TRUE))
+                     
+barplot(total_preday$sum)
+axis(1, at=total_preday$date , labels=total_preday$date)
+(summary_data <- summary(total_preday$sum))
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+Then we know the mean and median by summary the subset.
+So can try to find out the daily activity pattern. Using a time series plot help know what time zone is above avrage and contain the max steps.
+
+```{r, echo=TRUE}
+interval_steps <- all_data %>%
+                     group_by(interval) %>%
+                     summarise(mean = mean(steps, na.rm = TRUE))
+
+plot(interval_steps$interval, interval_steps$mean, type='l')
+
+(max_interval <- interval_steps[which(interval_steps$mean==max(interval_steps$mean)), ])
+
+```
+
+Till now we ignor NA value from origin data set we can make a hypothesis that we fill the mean value to the NAs it should be not quit chage from test data we get if the user use the device reguarly, or it use it just because tech geek.
+
+So we find the number of NAs, and fill mean value to all NA.
+
+```{r, echo=TRUE}
+count(all_data[is.na(all_data$steps),])
+
+fill_na <- all_data[,]
+fill_na[is.na(all_data$steps), 'steps'] <- summary_data['Mean']
+
+fill_na_preday <- fill_na %>%
+                     group_by(date) %>%
+                     summarise(sum = sum(steps, na.rm = TRUE))
+                     
+barplot(fill_na_preday$sum)
+axis(1, at=fill_na_preday$date , labels=fill_na_preday$date)
+(summary_data <- summary(fill_na_preday$sum))
+
+```
+ 
+Seem we expect the plot will be change but the value is irrational changed. So maybe the NA present also mean there shoud be no step in real situation.
+
+Finally we want to see if the weekday or weekend effect the behavior. So we separate dataset to two parts.
+
+```{r, echo=TRUE}
+weekday_data <- all_data[which( as.POSIXlt(all_data$date)$wday %in% c(1:5) ),]
+weekend_data <- all_data[which( ! as.POSIXlt(all_data$date)$wday %in% c(1:5) ),]
+
+weekday_interval_steps <- weekday_data %>%
+                     group_by(interval) %>%
+                     summarise(mean = mean(steps, na.rm = TRUE))
+
+weekend_interval_steps <- weekend_data %>%
+                     group_by(interval) %>%
+                     summarise(mean = mean(steps, na.rm = TRUE))
+
+par(mfcol = c(2, 1))
+plot(weekday_interval_steps$interval, weekday_interval_steps$mean, type='l', main = "Weekday")
+plot(weekend_interval_steps$interval, weekend_interval_steps$mean, type='l', main = "Weekend")
+
+```
+
+And we can 
