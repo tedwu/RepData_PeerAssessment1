@@ -93,4 +93,4 @@ plot(weekend_interval_steps$interval, weekend_interval_steps$mean, type='l', mai
 
 ```
 
-And we can 
+And we can see the diffence.
